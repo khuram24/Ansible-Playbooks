@@ -1,0 +1,79 @@
+--- 
+- hosts: 192.168.72.146
+  tasks:
+  - name: Preqistis
+    service: 
+      name: iptables
+      state: stopped
+      enabled: false
+
+  - name: Cleaning yum Cache
+    shell: "yum clean all; yum repolist; setenforce 0"
+
+  - name: INSTALLING VSFTPD TFTP-SERVER DHCP SYSLINUX
+    yum:
+      name:
+      - vsftpd
+      - tftp-server
+      - dhcp
+      - syslinux
+      state: present
+
+  - name: COPYING DHCP CONFIGURATION FILE
+    copy:
+      src: /etc/dhcp/dhcpd.conf
+      dest: /etc/dhcp/dhcpd.conf
+
+  - name: STARTING DHCPD
+    service:
+      name: dhcpd
+      state: started
+      enabled: yes
+
+  - name: SETTING UP TFTP SERVER
+    copy:
+      src: /etc/xinetd.d/tftp
+      dest: /etc/xinedtd.d/tftp
+
+  - name: COPYING BOOTING FILES
+    command: >
+      cp /mnt/isolinux/* /var/lib/tftpboot
+
+#      src: /mnt/isolinux/
+#      dest: /var/lib/tftpboot
+#      remote_src: true
+
+  - name: CREATING "pxelinux.cfg" DIRECTORY
+    file:
+      path: /var/lib/tftpboot/pxelinux.cfg
+      state: directory
+
+  - name: RENAMEING "isolinux.cfg" TO "default" UNDER PXELINUX.CFG
+    copy:
+      src: /var/lib/tftpboot/isolinux.cfg
+      remote_src: yes
+      dest: /var/lib/tftpboot/pxelinux.cfg/default
+
+  - name: Copying pxelinux.0 to /var/lib/tftpboot
+    copy:
+      src: /usr/share/syslinux/pxelinux.0
+      remote_src: yes
+      dest: /var/lib/tftpboot
+
+  - name: STARTING AND ENABLING TFTP SERVER
+    service:
+      name: xinetd
+      state: started
+      enabled: yes
+
+  - name: Copying DVD/ISO over to FTP server
+    copy: 
+      src: /mnt/
+      remote_src: yes
+      dest: /var/ftp/pub
+
+  - name: STARTING AND ENABLING FTP SERVER
+    service:
+      name: vsftpd
+      state: started
+      enabled: yes

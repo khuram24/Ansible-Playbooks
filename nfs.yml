@@ -1,0 +1,33 @@
+---
+- hosts: 192.168.72.146
+  tasks:
+   
+   - name: DISABLING SELINUX
+     shell: "setenforce 0"
+
+   - name: STOPPING AND DISABLING IPTABLES
+     service:
+      name: iptables
+      state: stopped
+      enabled: no
+
+   - name: INSTALLING NFS-UTILS
+     yum:
+      name: nfs-utils
+      state: present
+
+   - name: STARTING AND ENABLING
+     service:
+      name: nfs
+      state: started
+      enabled: yes
+
+   - name: CREATING DIRECTORY
+     file:
+      path: /data
+      state: directory
+
+   - name: CREATING SHARES
+     lineinfile:
+      path: /etc/exports
+      line: "/data *(rw,no_root_squash)"

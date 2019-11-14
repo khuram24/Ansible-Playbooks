@@ -1,0 +1,32 @@
+---
+  - name: CREATE A YUM REPOSITORY
+    hosts: 192.168.72.146
+    tasks:
+      - name: MOUNT DVD
+        mount:
+          path: /mnt
+          src: /dev/sr0
+          fstype: iso9660
+          state: present
+
+      - name: CREATE DIRECTORY
+        file:
+          dest: /var/ftp/pub/repository
+          state: directory
+          mode: 755
+
+      - name: COPY PACKAGES
+        command: >
+          cp -ar /mnt/Packages/* /var/ftp/pub/repository
+
+      - name: CREATE METADATA
+        command: >
+          createrepo /var/ftp/pub/repository
+
+      - name: ADD REPOSITORY
+        yum_repository:
+          name: repository
+          description: ftp dvd repository
+          baseurl: ftp://192.168.72.146/pub/repository
+          enabled: yes
+          gpgcheck: no
