@@ -1,0 +1,132 @@
+---
+- hosts: 192.168.72.146
+  vars:
+    packages:
+      ftp_p: vsftpd
+      tftp_p: tftp-server
+      dhcp_p: dhcp
+      syslinux_p: syslinux
+    services:
+      ftp_s: vsftpd
+      tftp_s: xinetd
+      dhcp_s: dhcpd
+  
+  tasks:
+   
+   - name: STOP IPTABLES AND SELINUX
+     service: 
+       name: iptables
+       state: stopped
+       enabled: false
+   
+   - name:
+     selinux:
+       policy: targeted
+       state: permissive
+
+   - name: INSTALLING ALL PACKAGES NEEDED
+     yum:
+       name: "{{ item.value }}"
+       state: installed
+     with_dict: "{{ packages }}" 
+
+   - name: SETTING UP DHCP
+     blockinfile:
+       path: /etc/dhcp/dhcpd.conf
+       block: |
+         default-lease-time 600;
+         max-lease-time 7200;
+         authoritative;
+         allow booting;
+         allow bootp;
+         subnet 192.168.72.0 netmask 255.255.255.0 {
+         range 192.168.72.205 192.168.72.220;
+         next-server 192.168.72.146;
+         filename "pxelinux.0"; }
+   
+   - name:
+     service:
+       name: "{{ services.dhcp_s }}"
+       state: started
+       enabled: true
+
+   - name: mounting cd on mnt folder
+     mount:
+       path: /mnt
+       src: /dev/sr0
+       fstype: iso9660
+       opts: ro,noauto
+       state: mounted
+ 
+   - name: COPY ISO TO FTP
+     synchronize:
+       src: /mnt/
+       dest: /var/ftp/pub/
+     delegate_to: 192.168.72.146
+
+   - name: CHANGE PUB PERMISSIONS
+     file:
+       path: /var/ftp/pub
+       mode: '0777'
+   
+   - name: STARTING AND ENABLING FTP SERVER
+     service:
+       name: "{{ services.ftp_s }}"
+       enabled: true
+       state: started
+   
+   
+   - name: SETTING UP TFTP SERVER
+     copy:
+       src: /var/ftp/pub/isolinux/
+       remote_src: yes
+       dest: /var/lib/tftpboot
+
+   - name: CREATING PXELINUX.CFG
+     file:
+       path: /var/lib/tftpboot/pxelinux.cfg
+       state: directory
+
+   - name: RENAME ISOLINUX.CFG TO DEFAULT
+     copy:
+       src: /var/lib/tftpboot/isolinux.cfg
+       remote_src: yes
+       dest: /var/lib/tftpboot/pxelinux.cfg/default
+
+   - name: COPY PXELINUX.0
+     copy:
+       src: /usr/share/syslinux/pxelinux.0
+       remote_src: yes
+       dest: /var/lib/tftpboot
+
+   - name: ENABLE XINETD FROM CONFIG FILE
+     replace:
+       path: /etc/xinetd.d/tftp
+       regexp: ".*disable.*"
+       replace: "disable =no"
+
+   - name: STARTING/ENABLING XINETD
+     service: 
+       name: "{{ services.tftp_s }}"
+       state: started
+       enabled: yes
+
+   - name: RESTART ALL SERVICES
+     service:
+       name: "{{ item.value }}"
+       state: restarted
+     with_dict: "{{ services }}"  
+
+   - name: COPY FILE KS FILE FROM CONTROL NODE TO MANAGED NODE
+     copy: 
+       src: /root/ks.cfg
+       dest: /var/ftp/pub
+
+   - name: ADD KS FILE ADDRESS IN DEFFUALT
+     lineinfile:
+       path: /var/lib/tftpboot/pxelinux.cfg/default
+       line: linux ks=ftp://192.168.72.146/pub
+
+  
+
+
