@@ -1,0 +1,23 @@
+---
+- hosts: 192.168.72.148
+  tasks:
+    - name: STOPPING DISABLING SELINUX
+      shell: "setenforce 0"
+
+    - name: STOPPING AND DISABLE IPTABLES
+      service:
+        name: iptables
+        state: stopped
+        enabled: no
+
+    - name: INSTALLING CLIENT NFS
+      yum:
+        name: nfs-utils
+        state: present
+
+    - name: MOUNTING NFS SHARE PERSISTANTLY
+      mount:
+        path: /tmp
+        src: 192.168.72.146:/data
+        fstype: nfs
+        state: mounted
