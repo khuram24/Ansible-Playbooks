@@ -1,9 +1,0 @@
----
-- name: INSTALL CREATEREPO ON CENTOS 6
-  hosts: 192.168.72.241
-  tasks:
-    
-  - name: HERE IT IS
-    yum:
-      name: createrepo
-      state: present
